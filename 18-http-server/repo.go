@@ -16,3 +16,7 @@ func (db *InMemoryDb) Get(name string) (int, bool) {
 func (db *InMemoryDb) Add(name string) {
 	db.store[name]++
 }
+
+func (db *InMemoryDb) GetMany() map[string]int {
+	return db.store
+}

@@ -1,24 +1,35 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"sync"
 )
 
 type PlayerServer struct {
-	mux *http.ServeMux
+	db *InMemoryDb
+	http.Handler
+}
+
+type Player struct {
+	Name  string
+	Score int
 }
 
 var mu sync.RWMutex
 
-func (s *PlayerServer) InitPlayerServer(db *InMemoryDb) *http.ServeMux {
-	s.mux = http.NewServeMux()
+func InitPlayerServer(db *InMemoryDb) PlayerServer {
+	server := PlayerServer{db: db}
+	mux := http.NewServeMux()
 
-	s.mux.HandleFunc("GET /players/{name}", GetScore(db))
-	s.mux.HandleFunc("POST /players/{name}", CreateScore(db))
+	mux.HandleFunc("GET /players", GetPlayers(db))
+	mux.HandleFunc("GET /players/{name}", GetScore(db))
+	mux.HandleFunc("POST /players/{name}", CreateScore(db))
 
-	return s.mux
+	server.Handler = mux
+
+	return server
 }
 
 func GetScore(db *InMemoryDb) func(http.ResponseWriter, *http.Request) {
@@ -43,5 +54,16 @@ func CreateScore(db *InMemoryDb) func(http.ResponseWriter, *http.Request) {
 		db.Add(playerName)
 		mu.Unlock()
 		w.WriteHeader(http.StatusAccepted)
+	}
+}
+
+func GetPlayers(db *InMemoryDb) func(http.ResponseWriter, *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		players := []Player{}
+		for name, score := range db.GetMany() {
+			players = append(players, Player{Name: name, Score: score})
+		}
+		w.Header().Set("content-type", "application/json")
+		json.NewEncoder(w).Encode(players)
 	}
 }
