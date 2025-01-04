@@ -9,12 +9,12 @@ import (
 )
 
 func TestGetPlayer(t *testing.T) {
-	store := map[string]int{
-		"M": 30,
-		"A": 20,
-	}
-	db := InMemoryDb{store}
-	mux := InitPlayerServer(&db)
+	database, cleanDatabase := createTempFile(t, `[
+			{"Name": "M", "Score": 30},
+			{"Name": "A", "Score": 20}]`)
+	defer cleanDatabase()
+	store := &FileSystemPlayerStore{database}
+	mux := InitPlayerServer(store)
 
 	t.Run("player M", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/players/M", nil)
@@ -57,8 +57,10 @@ func TestGetPlayer(t *testing.T) {
 }
 
 func TestPostPlayers(t *testing.T) {
-	db := InMemoryDb{store: map[string]int{}}
-	mux := InitPlayerServer(&db)
+	database, cleanDatabase := createTempFile(t, "")
+	defer cleanDatabase()
+	store := &FileSystemPlayerStore{database}
+	mux := InitPlayerServer(store)
 
 	t.Run("add player D", func(t *testing.T) {
 		req1 := httptest.NewRequest(http.MethodPost, "/players/D", nil)
@@ -81,11 +83,12 @@ func TestPostPlayers(t *testing.T) {
 }
 
 func TestGetPlayers(t *testing.T) {
-	db := InMemoryDb{store: map[string]int{
-		"A": 1,
-		"B": 2,
-	}}
-	mux := InitPlayerServer(&db)
+	database, cleanDatabase := createTempFile(t, `[
+			{"Name": "A", "Score": 1},
+			{"Name": "B", "Score": 2}]`)
+	defer cleanDatabase()
+	store := &FileSystemPlayerStore{database}
+	mux := InitPlayerServer(store)
 
 	t.Run("get many players", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/players", nil)

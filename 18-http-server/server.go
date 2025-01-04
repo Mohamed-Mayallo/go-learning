@@ -8,7 +8,7 @@ import (
 )
 
 type PlayerServer struct {
-	db *InMemoryDb
+	db *FileSystemPlayerStore
 	http.Handler
 }
 
@@ -19,7 +19,7 @@ type Player struct {
 
 var mu sync.RWMutex
 
-func InitPlayerServer(db *InMemoryDb) PlayerServer {
+func InitPlayerServer(db *FileSystemPlayerStore) PlayerServer {
 	server := PlayerServer{db: db}
 	mux := http.NewServeMux()
 
@@ -32,11 +32,11 @@ func InitPlayerServer(db *InMemoryDb) PlayerServer {
 	return server
 }
 
-func GetScore(db *InMemoryDb) func(http.ResponseWriter, *http.Request) {
+func GetScore(db *FileSystemPlayerStore) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		playerName := r.PathValue("name")
 		mu.Lock()
-		score, ok := db.Get(playerName)
+		score, ok := db.GetPlayerScore(playerName)
 		mu.Unlock()
 		if !ok {
 			w.WriteHeader(http.StatusNotFound)
@@ -47,7 +47,7 @@ func GetScore(db *InMemoryDb) func(http.ResponseWriter, *http.Request) {
 	}
 }
 
-func CreateScore(db *InMemoryDb) func(http.ResponseWriter, *http.Request) {
+func CreateScore(db *FileSystemPlayerStore) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		playerName := r.PathValue("name")
 		mu.Lock()
@@ -57,12 +57,9 @@ func CreateScore(db *InMemoryDb) func(http.ResponseWriter, *http.Request) {
 	}
 }
 
-func GetPlayers(db *InMemoryDb) func(http.ResponseWriter, *http.Request) {
+func GetPlayers(db *FileSystemPlayerStore) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
-		players := []Player{}
-		for name, score := range db.GetMany() {
-			players = append(players, Player{Name: name, Score: score})
-		}
+		players, _ := db.GetMany()
 		w.Header().Set("content-type", "application/json")
 		json.NewEncoder(w).Encode(players)
 	}
